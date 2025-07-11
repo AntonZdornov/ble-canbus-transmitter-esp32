@@ -5,7 +5,7 @@
 #include <Wire.h>
 #include <WiFi.h>
 
-bool debugMode = true;
+bool debugMode = false;
 
 bool disableWifi = false;
 bool disableDisplay = false;
@@ -68,6 +68,7 @@ void initWifi() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     if (debugMode) Serial.print(".");
+    displayText("Connecting...", 1);
   }
   if (debugMode) Serial.println("Connected to WiFi");
 
@@ -105,7 +106,7 @@ void setup() {
   Serial.begin(115200);
 
   initDisplay();
-  // initWifi();
+  initWifi();
   initBLE();
 }
 
@@ -154,52 +155,36 @@ void readSocRaw() {
 
   // Отправка запроса
   client.print("01 5B\r");
-  Serial.println("Battery request: <01 5B>");
+  if (debugMode) Serial.println("Battery request: <01 5B>");
 
   unsigned long timeout = millis();
-  char buffer[128];  // фиксированный буфер
-  size_t idx = 0;
-
+  String line;
   while (millis() - timeout < 1000) {
+    Serial.println("Проверка доступности клиента");
     if (client.available()) {
-      char c = client.read();
-      if (c == '\n' || idx >= sizeof(buffer) - 1) {
-        buffer[idx] = '\0';  // завершение строки
-        idx = 0;
+      if (debugMode) Serial.println("Клиент доступен");
+      String line = client.readStringUntil('\n');
+      line.trim();  // убираем пробелы и символы вокруг
+      if (debugMode) Serial.println(line);
 
-        // Чистим строку от пробелов и символов '>'
-        char *line = buffer;
-        while (*line == ' ' || *line == '>') line++;  // убираем лишнее
+      // Убираем ведущие символы '>' и пробелы
+      line = line.substring(line.indexOf('4'));  // начиная с первого '4'
+      line.trim();
 
-        if (debugMode) {
-          Serial.print("Received: ");
-          Serial.println(line);
+      // Проверяем начинается ли с "41 5B"
+      if (line.startsWith("41 5B")) {
+        // Разбираем строку на части
+        std::vector<String> parts;
+        char *token = strtok(const_cast<char *>(line.c_str()), " ");
+        while (token) {
+          parts.push_back(String(token));
+          token = strtok(NULL, " ");
         }
-
-        // Проверка на "41 5B"
-        if (strncmp(line, "41 5B", 5) == 0) {
-          // Разбиваем строку на токены
-          char *token;
-          int tokenIndex = 0;
-          uint8_t parsedValue = 0;
-
-          token = strtok(line, " ");
-          while (token != nullptr) {
-            if (tokenIndex == 2) {  // третий токен — нужный байт
-              parsedValue = strtol(token, nullptr, 16);
-              if (parsedValue >= 0 && parsedValue <= 255) raw = parsedValue;  // сохраняем значение
-              if (debugMode) {
-                Serial.print("Parsed raw value: ");
-                Serial.println(raw);
-              }
-              return;
-            }
-            token = strtok(nullptr, " ");
-            tokenIndex++;
-          }
+        if (parts.size() >= 3) {
+          raw = strtol(parts[2].c_str(), nullptr, 16);
+          if (debugMode) Serial.println(raw);
+          return;
         }
-      } else if (c != '\r') {
-        buffer[idx++] = c;  // копируем в буфер
       }
     }
   }
@@ -208,11 +193,11 @@ void readSocRaw() {
   return;
 }
 
-void displayText(String message) {
+void displayText(String message, int textSize) {
   display.clearDisplay();
-  display.setTextSize(2);
+  display.setTextSize(textSize);
   display.setTextColor(SSD1306_WHITE);
-  display.setCursor(20, 0);
+  display.setCursor(20, 15);  // x , y
   display.print(message);
   display.display();
 }
@@ -224,9 +209,9 @@ void loop() {
     Serial.print("new val: ");
     Serial.println(batteryLevel);
   }
-  displayText("------>");
+  displayText(String(batteryLevel), 4);
   delay(1000);
   sentMessage(batteryLevel);
-  displayText(String(batteryLevel) + "%");
+  displayText(String(batteryLevel) + "%", 4);
   delay(500);
 }
