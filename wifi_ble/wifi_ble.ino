@@ -33,11 +33,13 @@ const int rawMax = 255;  // raw ≈ уровень 100%
 int raw = 0;
 
 NimBLEServer *pServer;
-NimBLECharacteristic *pCharacteristic;
+NimBLECharacteristic *pCharacteristic_soc;
+NimBLECharacteristic *pCharacteristic_rpm;
 
 // UUID сервиса и характеристики
 #define SERVICE_UUID "12345678-1234-1234-1234-1234567890ab"
-#define CHARACTERISTIC_UUID "abcd1234-abcd-1234-abcd-1234567890ab"
+#define CHARACTERISTIC_UUID_SOC "abcd1234-abcd-1234-abcd-1234567890ab"
+#define CHARACTERISTIC_UUID_RPM "abcd1234-abcd-1234-abcd-1234567890ac"
 // mac address: 70:04:1D:38:75:76
 
 void initDisplay() {
@@ -60,44 +62,62 @@ void initDisplay() {
 
 void initWifi() {
   if (disableWifi) {
+    displayText("The WiFi Disabled", 1, true);
+    delay(2000);
     return;
   }
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
+  bool animation = true;
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     if (debugMode) Serial.print(".");
-    displayText("Connecting...", 1);
+    displayText(animation ? "Connecting..." : "Connecting..", 1, true);
+    animation = !animation;
   }
   if (debugMode) Serial.println("Connected to WiFi");
+
+  displayText("Connected to V-LINK", 1, true);
+  delay(2000);
 
   if (debugMode) Serial.println("The WiFi initialized successfully.");
 }
 
 void initBLE() {
   if (disableBluetooth) {
+    displayText("The Bluetooth Disabled", 1, true);
+    delay(2000);
     return;
   }
 
-  NimBLEDevice::init("Toyota-Battery");  // Название BLE устройства
+  NimBLEDevice::init("BLEC");  // Название BLE устройства
   pServer = NimBLEDevice::createServer();
 
-  // Создание сервиса и характеристики
+  displayText("Creating BLE Server", 1, true);
+  delay(2000);
+
+  // Создание сервиса
   NimBLEService *pService = pServer->createService(SERVICE_UUID);
-  pCharacteristic = pService->createCharacteristic(
-    CHARACTERISTIC_UUID,
+  // Создание характеристик
+  pCharacteristic_soc = pService->createCharacteristic(
+    CHARACTERISTIC_UUID_SOC,
+    NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
+  pCharacteristic_rpm = pService->createCharacteristic(
+    CHARACTERISTIC_UUID_RPM,
     NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
 
-
-  // Начальное значение SOC (например, -1%)
-  uint8_t soc = 0;
-  pCharacteristic->setValue(&soc, 1);
+  displayText("Creating...\n Service/Charact", 1, true);
+  delay(2000);
 
   pService->start();
   NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
+
   pAdvertising->addServiceUUID(SERVICE_UUID);
   NimBLEDevice::startAdvertising();
+
+  displayText("BLE started", 1, true);
+  delay(2000);
 
   if (debugMode) Serial.println("The BLE initialized successfully.");
 }
@@ -110,11 +130,11 @@ void setup() {
   initBLE();
 }
 
-void sentMessage(uint8_t message) {
+void sentMessage(NimBLECharacteristic *pCharacteristic, uint8_t message) {
   pCharacteristic->setValue(message);
   pCharacteristic->notify();
   if (debugMode) {
-    Serial.print("Updated SOC: ");
+    Serial.print("Updated сharacteristic:");
     Serial.println(message);
   }
 }
@@ -132,6 +152,8 @@ int convertBatteryData() {
 void readSocRaw() {
   if (WiFi.status() != WL_CONNECTED) {
     if (debugMode) Serial.println("WiFi not connected");
+    displayText("WiFi not connected", 1, true);
+    delay(5000);
     return;
   }
 
@@ -193,11 +215,22 @@ void readSocRaw() {
   return;
 }
 
-void displayText(String message, int textSize) {
+void displayText(String message, int textSize, bool center) {
   display.clearDisplay();
+  int16_t x1, y1;
+  uint16_t w, h;
+
+  // Получаем размер текста
+  if (center) display.getTextBounds(message, 0, 0, &x1, &y1, &w, &h);
+
+  // Вычисляем координаты для центра
+  int16_t x = center ? (display.width() - w) / 2 : 20;
+  int16_t y = center ? (display.height() - h) / 2 : 20;
+
+  // Устанавливаем курсор и печатаем текст
+  display.setCursor(x, y);
   display.setTextSize(textSize);
   display.setTextColor(SSD1306_WHITE);
-  display.setCursor(20, 15);  // x , y
   display.print(message);
   display.display();
 }
@@ -209,9 +242,9 @@ void loop() {
     Serial.print("new val: ");
     Serial.println(batteryLevel);
   }
-  displayText(String(batteryLevel), 4);
+  displayText(String(batteryLevel), 4, false);
   delay(1000);
-  sentMessage(batteryLevel);
-  displayText(String(batteryLevel) + "%", 4);
+  sentMessage(pCharacteristic_soc, batteryLevel);
+  displayText(String(batteryLevel) + "%", 4, false);
   delay(500);
 }
