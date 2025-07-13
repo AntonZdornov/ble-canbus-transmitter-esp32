@@ -216,6 +216,10 @@ void readSocRaw() {
 }
 
 void displayText(String message, int textSize, bool center) {
+  if (disableDisplay) {
+    return;
+  }
+
   display.clearDisplay();
   int16_t x1, y1;
   uint16_t w, h;
