@@ -30,7 +30,8 @@ const uint16_t ELM327Timeout = 3000;
 //SOC Parameters
 const int rawMin = 0;    // raw ≈ уровень 0%
 const int rawMax = 255;  // raw ≈ уровень 100%
-int raw = 0;
+int raw = 0;             // test value
+int currentRssi = 0;
 
 NimBLEServer *pServer;
 NimBLECharacteristic *pCharacteristic_soc;
@@ -68,14 +69,28 @@ void initWifi() {
   }
 
   WiFi.mode(WIFI_STA);
+  WiFi.setTxPower(WIFI_POWER_19_5dBm);
+  WiFi.setSleep(false);
   WiFi.begin(ssid, password);
   bool animation = true;
-  while (WiFi.status() != WL_CONNECTED) {
+
+  unsigned long startAttemptTime = millis();
+  const unsigned long wifiTimeout = 30000;  // 30 секунд
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < wifiTimeout) {
     delay(500);
     if (debugMode) Serial.print(".");
-    displayText(animation ? "Connecting..." : "Connecting..", 1, true);
+    currentRssi = WiFi.RSSI();  // будет -127 до подключения
+    if (debugMode) {
+      Serial.printf("Connecting... RSSI: %d dBm\n", currentRssi);
+    }
+    String rssi = " RSSI: " + String(rssi) + " dBm";
+    displayText(animation ? rssi + ", Connecting..." : rssi + ", Connecting..", 1, true);
     animation = !animation;
   }
+  if (WiFi.status() != WL_CONNECTED) {
+    return;
+  }
+
   if (debugMode) Serial.println("Connected to WiFi");
 
   displayText("Connected to V-LINK", 1, true);
@@ -182,8 +197,8 @@ void readSocRaw() {
   unsigned long timeout = millis();
   String line;
   while (millis() - timeout < 1000) {
-    Serial.println("Проверка доступности клиента");
     if (client.available()) {
+      Serial.println("Проверка доступности клиента");
       if (debugMode) Serial.println("Клиент доступен");
       String line = client.readStringUntil('\n');
       line.trim();  // убираем пробелы и символы вокруг
