@@ -28,7 +28,6 @@ void text() {
   logs_label = lv_label_create(lv_scr_act());
   lv_obj_set_style_text_color(logs_label, lv_color_white(), 0);
   lv_style_set_text_font(&style, &lv_font_montserrat_12);
-  lv_label_set_text(logs_label, "Start");
   lv_obj_set_style_text_font(logs_label, &lv_font_montserrat_12, 0);
   lv_obj_add_style(logs_label, &style, LV_PART_MAIN);
   lv_obj_set_style_text_align(logs_label, LV_TEXT_ALIGN_CENTER, 0);  // центрирование текста
@@ -129,11 +128,14 @@ void setup() {
   LOG_BEGIN(115200);
   LCD_Init();
   Lvgl_Init();
-
+  background();
+  create_battery_icon();
+  update_battery(44);
   text();
+  log_message("Start BLE");
+
 
   initWifi();
-  log_message("Start BLE");
   initBLE();
 
 
