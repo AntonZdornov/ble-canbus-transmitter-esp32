@@ -8,12 +8,19 @@
 #include "utils.h"
 #include <WiFi.h>
 #include "ui_globals.h"
+// #include <Adafruit_NeoPixel.h>
 // #include "car.h"
 
 // LV_IMG_DECLARE(car_image);
 
 #define LV_CONF_INCLUDE_SIMPLE
 #include <lvgl.h>
+
+/// На большинстве отображающих плат на ESP32‑C6 встроена адресная RGB‑лента:
+/// GPIO8 = управляющий пин для WS2812B.
+// static const uint8_t LED_PIN = 8;
+// static const uint8_t NUM_LEDS = 1;
+// static Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 // WIFISettings
 WiFiClient client;
@@ -25,6 +32,7 @@ lv_obj_t *soc_arc = nullptr;
 lv_obj_t *soc_label = nullptr;
 lv_obj_t *logs_label = nullptr;
 extern const lv_font_t lv_font_montserrat_48;
+extern const lv_font_t lv_font_montserrat_38;
 extern const lv_font_t lv_font_montserrat_12;
 extern const lv_font_t lv_font_montserrat_22;
 
@@ -87,7 +95,7 @@ void crete_ui() {
   lv_obj_set_width(time_label, LV_PCT(100));
   lv_obj_set_style_text_align(time_label, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_color(time_label, lv_color_white(), 0);
-  lv_obj_set_style_text_font(time_label, &lv_font_montserrat_22, 0);
+  lv_obj_set_style_text_font(time_label, &lv_font_montserrat_38, 0);
   // lv_obj_set_style_pad_top(time_label, 5, LV_PART_MAIN);  // Отступ сверху
   start_time = millis();
 
@@ -232,6 +240,14 @@ void setup() {
     update_time_label();
   },
                   1000, NULL);
+
+  // strip.begin();
+  // strip.setBrightness(255);          // можно уменьшить яркость
+  // strip.fill(strip.Color(0, 0, 0));  // R=0 G=0 B=0 → LED выключён
+  // strip.show();
+  // выключить лед
+  // pinMode(RGB_BUILTIN, OUTPUT);
+  // digitalWrite(RGB_BUILTIN, LOW);
 }
 
 void loop() {
