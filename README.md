@@ -18,6 +18,7 @@ This project uses an ELM327 Wi-Fi adapter to read CAN bus data, process incoming
 - Forwarding CAN bus data to custom BLE applications.
 - Building mobile apps that receive live car data wirelessly.
 - Retrieving hybrid battery charge level (SOC) from a Toyota Corolla Hybrid.
+- Displaying SOC on a screen as a circular progress indicator with percentage using the LVGL graphics library.
 
 ## Requirements
 - ELM327 Wi-Fi adapter.
